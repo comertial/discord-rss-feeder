@@ -137,22 +137,22 @@ We use **git-cliff** to automatically update the `CHANGELOG.md` file with a summ
    ```bash
    pip install git-cliff==2.7.0
    ```
-2. Add the following script as a Git `pre-push` hook to automatically refresh the changelog before pushing changes. Create a file at `.git/hooks/pre-push` and paste:  
+2. Add the following script as a Git `pre-commit` hook to automatically refresh the changelog before pushing changes. Create a file at `.git/hooks/pre-commit` and paste:  
    ```shell
    #!/bin/sh
-
+   
    # Check if git-cliff is installed
    if ! command -v git-cliff >/dev/null 2>&1; then
        echo "Warning: git-cliff is not installed, skipping changelog generation"
        exit 0
    fi
-
+   
    # Generate the changelog
    git cliff -o CHANGELOG.md || {
        echo "Error: Failed to generate changelog"
        exit 1
    }
-
+   
    # Check if the changelog was modified
    if git diff --quiet CHANGELOG.md; then
        # No changes to changelog
@@ -163,15 +163,7 @@ We use **git-cliff** to automatically update the `CHANGELOG.md` file with a summ
            echo "Error: Failed to add CHANGELOG.md to the commit"
            exit 1
        }
-
-       # Create a new commit for the updated changelog
-       git commit -m "fix(changelog): Update CHANGELOG.md" || {
-           echo "Error: Failed to commit CHANGELOG.md"
-           exit 1
-       }
    fi
-
-   exit 0
    ```
 
 This script ensures that the changelog always stays up-to-date, so you don’t have to worry about forgetting to include your changes.
