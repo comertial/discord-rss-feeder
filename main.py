@@ -201,7 +201,7 @@ def main():
                 await ctx.send(f"```markdown\n{MESSAGES['NoRssFound']}```", silent=True)
                 return
 
-            await ctx.send("Select the RSS feed you want to update:", view=UpdateRssFeedViewSelect(feeds), silent=True)
+            await ctx.send("Select the RSS feed you want to update:", view=UpdateRssFeedView(feeds), silent=True)
 
     @bot.command(name='delete_rss_feeds', description='Delete one or multiple RSS feeds')
     async def delete_rss_feeds(ctx):
@@ -216,7 +216,7 @@ def main():
                 await ctx.send(f"```markdown\n{MESSAGES['NoRssFound']}```", silent=True)
                 return
 
-            await ctx.send("Select the RSS feeds you want to delete:", view=DeleteRssFeedViewSelect(feeds), silent=True)
+            await ctx.send("Select the RSS feeds you want to delete:", view=DeleteRssFeedView(feeds), silent=True)
 
     @bot.command(name='get_rss_feeds', description='Get Server RSS Feeds')
     async def get_rss_feeds(ctx):

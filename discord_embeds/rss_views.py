@@ -1,7 +1,9 @@
 import discord
-from discord.ui import Select, View, Modal, TextInput
+from discord.ui import Select, View, Modal, TextInput, Button
 
 from DatabaseManager import db_manager
+
+
 # Create a class to handle the dropdowns and their interactions
 class DropdownRssHandler(View):
     def __init__(self, ctx):
@@ -29,8 +31,6 @@ class DropdownRssHandler(View):
             elif self.rss_action == "Disable":
                 action = False
 
-            # if action is not None:
-            #     RSS_CHANNELS[rss_feed]['enabled'] = action
             if action is not None:
                 # Save changes
                 data = {'enabled': action}
@@ -84,7 +84,7 @@ class DropdownRssHandler(View):
                 # if self.parent_view.ctx.message.guild.id != feed_server_id:
                 #     continue
                 options.append(discord.SelectOption(label=feed_name,
-                                                description=f'{feed_url[:100]} - {"Enabled" if enabled else "Disabled"}'))
+                                                    description=f'{feed_url[:100]} - {"Enabled" if enabled else "Disabled"}'))
 
             super().__init__(placeholder="Select RSS Feeds", min_values=1, max_values=len(options),
                              options=options)
@@ -165,8 +165,14 @@ class AddRssFeed(Modal, title='Add RSS Feed'):
 
 
 class AddRssFeedView(View):
-    @discord.ui.button(label="Add RSS", style=discord.ButtonStyle.primary)
-    async def open_form_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    def __init__(self):
+        super().__init__()
+        # Create and add the button manually
+        self.add_rss_button = Button(label="Add RSS", style=discord.ButtonStyle.primary)
+        self.add_rss_button.callback = self.open_form_button
+        self.add_item(self.add_rss_button)
+
+    async def open_form_button(self, interaction: discord.Interaction):
         await interaction.response.send_modal(AddRssFeed())
         await self.terminate_ui(interaction)
 
@@ -176,27 +182,36 @@ class AddRssFeedView(View):
         await interaction.message.delete()  # Delete the original message with the UI
 
 
-class UpdateRssFeedSelect(Select):
+class UpdateRssFeedView(View):
     def __init__(self, feeds):
-        options = [discord.SelectOption(label=feed['name'], value=feed['url'], description=f'{feed["url"][:100]} - {"Enabled" if feed["enabled"] else "Disabled"}') for feed in feeds]
-        super().__init__(placeholder="Select RSS feed to update", min_values=1, max_values=1, options=options)
+        super().__init__()
+        self.feeds = feeds
 
-    async def callback(self, interaction: discord.Interaction):
+        # Create and add select menu manually
+        self.feed_select = Select(
+            placeholder="Select RSS feed to update",
+            min_values=1,
+            max_values=1,
+            options=[discord.SelectOption(
+                label=feed['name'],
+                value=feed['url'],
+                description=f'{feed["url"][:100]} - {"Enabled" if feed["enabled"] else "Disabled"}')
+                for feed in feeds]
+        )
+        self.feed_select.callback = self.on_feed_select
+        self.add_item(self.feed_select)
+
+    async def on_feed_select(self, interaction: discord.Interaction):
         server_id = interaction.guild.id
-        await interaction.response.send_modal(UpdateRssFeed(self.values[0], server_id))
+        selected_feed = self.feed_select.values[0]
+        await interaction.response.send_modal(UpdateRssFeed(selected_feed, server_id))
         await self.terminate_ui(interaction)
 
     # Method to terminate the UI
-    @staticmethod
-    async def terminate_ui(interaction):
-        # self.stop()  # Stop the view from listening for interactions
+    async def terminate_ui(self, interaction):
+        self.stop()  # Stop the view from listening for interactions
         await interaction.message.delete()  # Delete the original message with the UI
 
-
-class UpdateRssFeedViewSelect(View):
-    def __init__(self, feeds):
-        super().__init__()
-        self.add_item(UpdateRssFeedSelect(feeds))
 
 class UpdateRssFeed(Modal, title='Update RSS Feed'):
     def __init__(self, feed_url, feed_server_id):
@@ -271,19 +286,31 @@ class UpdateRssFeed(Modal, title='Update RSS Feed'):
         await interaction.response.send_message(f'Oops! Something went wrong: {error}', ephemeral=True, silent=True)
 
 
-class DeleteRssFeedSelect(Select):
+class DeleteRssFeedView(View):
     def __init__(self, feeds):
+        super().__init__()
         self.feeds = feeds
 
-        options = [discord.SelectOption(label=feed['name'], value=feed['url'], description=f'{feed["url"][:100]} - {"Enabled" if feed["enabled"] else "Disabled"}') for feed in feeds]
-        super().__init__(placeholder="Select RSS feed to delete", min_values=1, max_values=len(feeds), options=options)
+        # Create and add select menu manually
+        self.feed_select = Select(
+            placeholder="Select RSS feed to delete",
+            min_values=1,
+            max_values=len(feeds),
+            options=[discord.SelectOption(
+                label=feed['name'],
+                value=feed['url'],
+                description=f'{feed["url"][:100]} - {"Enabled" if feed["enabled"] else "Disabled"}')
+                for feed in feeds]
+        )
+        self.feed_select.callback = self.on_feed_select
+        self.add_item(self.feed_select)
 
-    async def callback(self, interaction: discord.Interaction):
+    async def on_feed_select(self, interaction: discord.Interaction):
         server_id = interaction.guild.id
-        urls = self.values
+        urls = self.feed_select.values
 
-        urls = "', '".join(urls)
-        condition = f'(server_id = {server_id} AND url IN (\'{urls}\'))'
+        urls_str = "', '".join(urls)
+        condition = f'(server_id = {server_id} AND url IN (\'{urls_str}\'))'
         db_manager.delete('RssFeed', condition)
 
         deleted_names = [feed['name'] for feed in self.feeds if feed['url'] in urls]
@@ -292,13 +319,6 @@ class DeleteRssFeedSelect(Select):
         await self.terminate_ui(interaction)
 
     # Method to terminate the UI
-    @staticmethod
-    async def terminate_ui(interaction):
-        # self.stop()  # Stop the view from listening for interactions
+    async def terminate_ui(self, interaction):
+        self.stop()  # Stop the view from listening for interactions
         await interaction.message.delete()  # Delete the original message with the UI
-
-
-class DeleteRssFeedViewSelect(View):
-    def __init__(self, feeds):
-        super().__init__()
-        self.add_item(DeleteRssFeedSelect(feeds))
